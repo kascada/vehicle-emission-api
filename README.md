@@ -87,6 +87,32 @@ go run main.go check-email <email>
 
 > Hinweis: Der Cache lebt nur für die Dauer des Prozesses. Bei jedem neuen `go run` startet er leer.
 
+## API-Endpunkt (HTTP-Server)
+
+```
+GET /vehicle/{id}
+```
+
+Die E-Mail-Adresse zur Authentifizierung kann auf zwei Arten übergeben werden:
+
+**Variante 1 — Header (empfohlen für Produktion):**
+
+```bash
+curl -H "Email: user@gmail.com" http://localhost:8080/vehicle/47085
+```
+
+Die E-Mail ist nicht in der URL sichtbar — keine Logs, keine Browser-History, kein Referrer-Leak.
+
+**Variante 2 — Query-Parameter (zum Testen):**
+
+```bash
+curl http://localhost:8080/vehicle/47085?email=user@gmail.com
+```
+
+Einfacher zum Testen im Browser oder auf der Kommandozeile. Die E-Mail landet allerdings in Server-Logs und Browser-History — daher nur für die Entwicklung gedacht.
+
+Header hat Vorrang. Wenn beide angegeben sind, wird der Header verwendet.
+
 ## Fehlerbehandlung
 
 | Situation              | Verhalten                                          |

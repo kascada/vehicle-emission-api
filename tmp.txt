@@ -1,32 +1,6 @@
 
 
 
-Ausgabe lesbar, Inkonsistenzen werden erkannt.
-
-Unit-Test integriert ohne Netzwerkverbindung:
-
-```
-go test -v ./...
-```
-
-### E-Mail-Verifikation
-
-Domains der Wegwerf-Adressen werden einmalig geladen und können jederzeit aktualisiert werden.
-Diese werden per `embed` direkt in den Code kompiliert, daher kein Container o. Ä. nötig.
-Download bei Programmstart wäre eine Alternative, aber die Liste ändert sich zu selten —
-würde den Start nur unnötig verzögern.
-
-Parsen der E-Mail, Syntax wird geprüft und mit der Liste abgeglichen.
-
-Verifikation per CLI:
-
-```
-go run main.go validate-email notvalid
-go run main.go validate-email wegwerf@10mail.org
-```
-
-Unit-Test erweitert, wird automatisch nach dem Build ausgeführt.
-
 ### Authentifizierung
 
 Statt einem Token wird die E-Mail-Adresse geprüft und wenn positiv in einen flüchtigen Cache geschrieben.

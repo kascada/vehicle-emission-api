@@ -63,7 +63,29 @@ go run main.go vehicle -text -verbose 47913
 
 Ausgabe lesbar, Inkonsistenzen werden erkannt.
 
-Unit-Test integriert ohne Netzwerkverbindung:
+Unit-Test integriert
+
+
+### Authentifizierung
+
+Statt einem Token wird die E-Mail-Adresse geprüft und wenn positiv in einen flüchtigen Cache geschrieben.
+Der Cache hat pro Eintrag eine Verfallszeit.
+
+```
+go run main.go check-email test@gmail.com
+```
+
+### API
+
+*(in Arbeit)*
+
+---
+
+## Offene Punkte
+
+- Cache-Größe und Verfall prüfen
+- Prüfen, ob alle Vorgaben erfüllt
+ ohne Netzwerkverbindung:
 
 ```
 go test -v ./...
@@ -88,3 +110,41 @@ go run main.go validate-email wegwerf@10mail.org
 Unit-Test erweitert, wird automatisch nach dem Build ausgeführt.
 
 
+
+
+### Authentifizierung
+
+Statt einem Token wird die E-Mail-Adresse geprüft und wenn positiv in einen flüchtigen Cache geschrieben.
+Der Cache hat pro Eintrag eine Verfallszeit.
+
+```
+go run main.go check-email test@gmail.com
+```
+
+### API
+
+Für die API haben wir zwei Aufrufarten:
+
+/vehicle/47085?email=user@gmail.com
+ Übergabe der email per POST oder GET
+
+Sicherer ist natürlich:
+curl -H "email: user@gmail.com" http://localhost:8080/vehicle/47085
+
+API-Test per CLI eingebaut:
+go run main.go fetch -verbose -text 47085 user@gmail.com
+
+
+
+
+
+
+
+---
+
+## Offene Punkte
+
+- Cache-Größe und Verfall prüfen
+- Prüfen, ob alle Vorgaben erfüllt
+- verbose auch bei API? miss testen
+- short -Guard
