@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -28,17 +29,18 @@ type VehicleData struct {
 }
 
 // rawVehicle bildet die relevanten Felder der FuelEconomy.gov JSON-Response ab.
+// Die API liefert alle Felder als JSON-Strings, auch numerische Werte.
 type rawVehicle struct {
-	Make             string  `json:"make"`
-	Model            string  `json:"model"`
-	Year             int     `json:"year"`
-	City08           int     `json:"city08"`
-	Highway08        int     `json:"highway08"`
-	Comb08           int     `json:"comb08"`
-	CO2              int     `json:"co2"`
-	CO2TailpipeGpm   float64 `json:"co2TailpipeGpm"`
-	VClass           string  `json:"VClass"`
-	FuelType1        string  `json:"fuelType1"`
+	Make           string `json:"make"`
+	Model          string `json:"model"`
+	Year           string `json:"year"`
+	City08         string `json:"city08"`
+	Highway08      string `json:"highway08"`
+	Comb08         string `json:"comb08"`
+	CO2            string `json:"co2"`
+	CO2TailpipeGpm string `json:"co2TailpipeGpm"`
+	VClass         string `json:"VClass"`
+	FuelType1      string `json:"fuelType1"`
 }
 
 type cacheEntry struct {
@@ -119,26 +121,33 @@ func mapToVehicleData(raw *rawVehicle) *VehicleData {
 	v := &VehicleData{
 		Make:      raw.Make,
 		Model:     raw.Model,
-		Year:      raw.Year,
-		City08:    raw.City08,
-		Highway08: raw.Highway08,
-		Comb08:    raw.Comb08,
+		Year:      parseInt(raw.Year),
+		City08:    parseInt(raw.City08),
+		Highway08: parseInt(raw.Highway08),
+		Comb08:    parseInt(raw.Comb08),
 		VClass:    raw.VClass,
 		FuelType:  raw.FuelType1,
 	}
 
-	// CO2 Fallback-Logik (siehe NOTES.md, Problem 1):
+	// CO2 Fallback-Logik:
 	// 1. co2 > 0 → direkt verwenden
 	// 2. co2 <= 0 && co2TailpipeGpm > 0 → Fallback
 	// 3. beides <= 0 → null (Pointer bleibt nil)
-	switch {
-	case raw.CO2 > 0:
-		co2 := float64(raw.CO2)
+	if co2 := parseFloat(raw.CO2); co2 > 0 {
 		v.CO2 = &co2
-	case raw.CO2TailpipeGpm > 0:
-		v.CO2 = &raw.CO2TailpipeGpm
+	} else if pipe := parseFloat(raw.CO2TailpipeGpm); pipe > 0 {
+		v.CO2 = &pipe
 	}
-	// Sonst bleibt v.CO2 == nil → JSON: "co2": null
 
 	return v
+}
+
+func parseInt(s string) int {
+	n, _ := strconv.Atoi(s)
+	return n
+}
+
+func parseFloat(s string) float64 {
+	f, _ := strconv.ParseFloat(s, 64)
+	return f
 }

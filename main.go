@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/kamran/vehicle-emission-api/cache"
+	"github.com/kamran/vehicle-emission-api/client"
+	"github.com/kamran/vehicle-emission-api/handler"
 	"github.com/kamran/vehicle-emission-api/validator"
 )
 
@@ -201,6 +203,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  vehicle-emission-api validate-email <email> E-Mail-Adresse prüfen")
 	fmt.Fprintln(os.Stderr, "  vehicle-emission-api check-email <email>    E-Mail prüfen (mit Cache)")
 	fmt.Fprintln(os.Stderr, "  vehicle-emission-api fetch <id> <email>     Fahrzeug + E-Mail-Check")
+	fmt.Fprintln(os.Stderr, "  vehicle-emission-api serve                  HTTP-Server starten")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "flags (vehicle, fetch):")
 	fmt.Fprintln(os.Stderr, "  -text     Lesbare Textausgabe statt JSON")
@@ -226,6 +229,8 @@ func main() {
 		err = cmdCheckEmail(args)
 	case "fetch":
 		err = cmdFetch(args)
+	case "serve":
+		err = cmdServe(args)
 	default:
 		fmt.Fprintf(os.Stderr, "unbekannter Befehl: %q\n\n", cmd)
 		usage()
@@ -296,6 +301,27 @@ func cmdVehicle(args []string) error {
 	checkDataQuality(v)
 	fmt.Print(v.FormatText())
 	return nil
+}
+
+func cmdServe(args []string) error {
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	port := fs.String("port", "8081", "Port auf dem der Server lauscht")
+	verboseMode := fs.Bool("verbose", false, "Cache-Treffer und -Misses auf stderr ausgeben")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	fc := client.NewFuelEconomyClient(nil)
+	ev := validator.NewEmailValidator(validator.NewDisposableChecker())
+	ec := cache.NewEmailCache(6*time.Hour, context.Background())
+	h := handler.New(ev, ec, fc, *verboseMode)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /vehicle/{id}", h.GetVehicle)
+
+	addr := ":" + *port
+	fmt.Fprintf(os.Stderr, "[serve] listening on %s\n", addr)
+	return http.ListenAndServe(addr, mux)
 }
 
 func cmdFetch(args []string) error {

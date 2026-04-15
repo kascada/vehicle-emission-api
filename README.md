@@ -87,7 +87,18 @@ go run main.go check-email <email>
 
 > Hinweis: Der Cache lebt nur für die Dauer des Prozesses. Bei jedem neuen `go run` startet er leer.
 
-## API-Endpunkt (HTTP-Server)
+### `serve` — HTTP-Server starten
+
+```bash
+go run main.go serve
+go run main.go serve -port 9000
+```
+
+| Flag     | Default | Beschreibung          |
+|----------|---------|-----------------------|
+| `-port`  | `8081`  | Port des HTTP-Servers |
+
+## API-Endpunkt
 
 ```
 GET /vehicle/{id}
@@ -95,10 +106,10 @@ GET /vehicle/{id}
 
 Die E-Mail-Adresse zur Authentifizierung kann auf zwei Arten übergeben werden:
 
-**Variante 1 — Header (empfohlen für Produktion):**
+**Variante 1 — Header (empfohlen):**
 
 ```bash
-curl -H "Email: user@gmail.com" http://localhost:8080/vehicle/47085
+curl -H "Email: user@gmail.com" http://localhost:8081/vehicle/47085
 ```
 
 Die E-Mail ist nicht in der URL sichtbar — keine Logs, keine Browser-History, kein Referrer-Leak.
@@ -106,12 +117,22 @@ Die E-Mail ist nicht in der URL sichtbar — keine Logs, keine Browser-History, 
 **Variante 2 — Query-Parameter (zum Testen):**
 
 ```bash
-curl http://localhost:8080/vehicle/47085?email=user@gmail.com
+curl "http://localhost:8081/vehicle/47085?email=user@gmail.com"
 ```
 
 Einfacher zum Testen im Browser oder auf der Kommandozeile. Die E-Mail landet allerdings in Server-Logs und Browser-History — daher nur für die Entwicklung gedacht.
 
 Header hat Vorrang. Wenn beide angegeben sind, wird der Header verwendet.
+
+### HTTP-Fehlercodes
+
+| Status | Ursache                                    |
+|--------|--------------------------------------------|
+| 400    | Ungültige Fahrzeug-ID oder E-Mail-Format   |
+| 401    | Keine E-Mail angegeben                     |
+| 403    | Wegwerf-E-Mail-Adresse                     |
+| 404    | Fahrzeug-ID nicht gefunden                 |
+| 502    | Upstream-Fehler (fueleconomy.gov)          |
 
 ## Fehlerbehandlung
 
