@@ -1,0 +1,20 @@
+{
+  "id": "7062",
+  "make": "Ford",
+  "model": "F150 Pickup 2WD",
+  "year": "1990",
+  "VClass": "Standard Pickup Trucks",
+  "drive": "Rear-Wheel Drive",
+  "trany": "Automatic 3-spd",
+  "cylinders": "6",
+  "displ": "4.9",
+  "fuelType1": "Regular Gasoline",
+  "atvType": "",
+  "city08": "13",
+  "highway08": "15",
+  "comb08": "14",
+  "co2": "-1",
+  "co2TailpipeGpm": "634.7857142857143",
+  "ghgScore": "-1",
+  "feScore": "-1"
+}

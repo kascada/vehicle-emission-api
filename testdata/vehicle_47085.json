@@ -1,0 +1,20 @@
+{
+  "id": "47085",
+  "make": "Toyota",
+  "model": "Camry",
+  "year": "2024",
+  "VClass": "Midsize Cars",
+  "drive": "Front-Wheel Drive",
+  "trany": "Automatic (S8)",
+  "cylinders": "6",
+  "displ": "3.5",
+  "fuelType1": "Regular Gasoline",
+  "atvType": "",
+  "city08": "22",
+  "highway08": "33",
+  "comb08": "26",
+  "co2": "338",
+  "co2TailpipeGpm": "338.0",
+  "ghgScore": "5",
+  "feScore": "5"
+}

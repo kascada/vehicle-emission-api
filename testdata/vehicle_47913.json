@@ -1,0 +1,20 @@
+{
+  "id": "47913",
+  "make": "Tesla",
+  "model": "Model Y Long Range AWD",
+  "year": "2024",
+  "VClass": "Small Sport Utility Vehicle 4WD",
+  "drive": "All-Wheel Drive",
+  "trany": "Automatic (A1)",
+  "cylinders": "",
+  "displ": "",
+  "fuelType1": "Electricity",
+  "atvType": "EV",
+  "city08": "122",
+  "highway08": "112",
+  "comb08": "117",
+  "co2": "0",
+  "co2TailpipeGpm": "0.0",
+  "ghgScore": "10",
+  "feScore": "10"
+}
