@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -17,183 +16,6 @@ import (
 	"github.com/kamran/vehicle-emission-api/handler"
 	"github.com/kamran/vehicle-emission-api/validator"
 )
-
-var (
-	baseURL    = "https://www.fueleconomy.gov/ws/rest"
-	httpClient = &http.Client{Timeout: 10 * time.Second}
-	verbose    bool
-	logWriter  io.Writer = os.Stderr
-)
-
-func logf(format string, args ...any) {
-	if verbose {
-		fmt.Fprintf(logWriter, "[verbose] "+format+"\n", args...)
-	}
-}
-
-func warnf(format string, args ...any) {
-	if verbose {
-		fmt.Fprintf(logWriter, "[warn]    "+format+"\n", args...)
-	}
-}
-
-// Vehicle enthält die relevanten Felder aus der fueleconomy.gov API.
-// Die API liefert alle Felder als JSON-Strings, auch numerische Werte.
-type Vehicle struct {
-	ID        string `json:"id"`
-	Make      string `json:"make"`
-	Model     string `json:"model"`
-	Year      string `json:"year"`
-	Class     string `json:"VClass"`
-	Drive     string `json:"drive"`
-	Trany     string `json:"trany"`
-	Cylinders string `json:"cylinders"`
-	Displ     string `json:"displ"`
-	FuelType  string `json:"fuelType1"`
-	City      string `json:"city08"`
-	Highway   string `json:"highway08"`
-	Combined  string `json:"comb08"`
-	CO2Raw    string `json:"co2"`
-	CO2Pipe   string `json:"co2TailpipeGpm"`
-	GHGScore  string `json:"ghgScore"`
-	FEScore   string `json:"feScore"`
-	AtvType   string `json:"atvType"`
-}
-
-// co2 gibt den besten verfügbaren CO₂-Wert zurück (P1: Fallback-Logik).
-func (v Vehicle) co2() (value string, source string) {
-	if f, err := strconv.ParseFloat(v.CO2Raw, 64); err == nil && f > 0 {
-		return v.CO2Raw, "co2"
-	}
-	if f, err := strconv.ParseFloat(v.CO2Pipe, 64); err == nil && f > 0 {
-		return v.CO2Pipe, "co2TailpipeGpm"
-	}
-	return "", ""
-}
-
-// fuelUnit gibt "MPGe" für Elektro/Plug-in zurück, sonst "MPG" (P2).
-func (v Vehicle) fuelUnit() string {
-	ft := strings.ToLower(v.FuelType)
-	if strings.Contains(ft, "electricity") || v.AtvType == "EV" || v.AtvType == "PHEV" {
-		return "MPGe"
-	}
-	return "MPG"
-}
-
-func (v Vehicle) FormatText() string {
-	co2val, _ := v.co2()
-	if co2val == "" {
-		co2val = "n/a"
-	}
-
-	ghg := v.GHGScore
-	if ghg == "-1" || ghg == "" {
-		ghg = "n/a"
-	}
-
-	return fmt.Sprintf(
-		"%-15s %s %s %s\n"+
-			"%-15s %s\n"+
-			"%-15s %s, %s L, %s Zyl.\n"+
-			"%-15s %s\n"+
-			"%-15s Stadt %s / Autobahn %s / Kombi %s %s\n"+
-			"%-15s %s g/mi\n"+
-			"%-15s %s/10\n",
-		"Fahrzeug:", v.Year, v.Make, v.Model,
-		"Klasse:", v.Class,
-		"Antrieb:", v.Drive, v.Displ, v.Cylinders,
-		"Getriebe:", v.Trany,
-		"Verbrauch:", v.City, v.Highway, v.Combined, v.fuelUnit(),
-		"CO₂:", co2val,
-		"Umwelt-Score:", ghg,
-	)
-}
-
-// checkDataQuality loggt bekannte und generische Datenprobleme (nur bei -verbose).
-func checkDataQuality(v Vehicle) {
-	// P1: CO₂-Fallback
-	_, src := v.co2()
-	switch src {
-	case "":
-		warnf("P1 CO₂: kein verwertbarer Wert (co2=%q, co2TailpipeGpm=%q) → wird als n/a ausgegeben", v.CO2Raw, v.CO2Pipe)
-	case "co2TailpipeGpm":
-		warnf("P1 CO₂: primäres Feld co2=%q unbrauchbar → Fallback auf co2TailpipeGpm=%q", v.CO2Raw, v.CO2Pipe)
-	default:
-		logf("P1 CO₂: ok (Quelle: %s = %s g/mi)", src, v.CO2Raw)
-	}
-
-	// P2: Einheit MPG vs MPGe
-	unit := v.fuelUnit()
-	if unit == "MPGe" {
-		warnf("P2 Einheit: fuelType=%q → Verbrauchswerte sind %s, nicht MPG", v.FuelType, unit)
-	} else {
-		logf("P2 Einheit: %s (fuelType=%q)", unit, v.FuelType)
-	}
-
-	// P3: Sentinel-Werte bei Scores
-	if v.GHGScore == "-1" || v.GHGScore == "" {
-		warnf("P3 GHG-Score: Wert %q → nicht verfügbar (vermutlich Fahrzeug vor ~2000)", v.GHGScore)
-	}
-	if v.FEScore == "-1" || v.FEScore == "" {
-		warnf("P3 FE-Score: Wert %q → nicht verfügbar", v.FEScore)
-	}
-
-	// Generisch: wichtige Felder leer
-	checks := map[string]string{
-		"make":  v.Make,
-		"model": v.Model,
-		"year":  v.Year,
-		"drive": v.Drive,
-		"trany": v.Trany,
-	}
-	for field, val := range checks {
-		if strings.TrimSpace(val) == "" {
-			warnf("LEER: Feld %q ist leer — möglicherweise unvollständige API-Daten", field)
-		}
-	}
-
-	// Generisch: Hubraum leer bei Verbrennern
-	if v.fuelUnit() == "MPG" && strings.TrimSpace(v.Displ) == "" {
-		warnf("LEER: displ (Hubraum) ist leer bei Verbrenner — unerwartete Datenlücke")
-	}
-}
-
-// fetchVehicle ruft die Fahrzeugdaten für die gegebene ID ab.
-// Gibt rohe JSON-Bytes zurück oder einen beschreibenden Fehler.
-func fetchVehicle(id string) ([]byte, error) {
-	url := baseURL + "/vehicle/" + id
-	logf("GET %s", url)
-	logf("Header: Accept: application/json")
-
-	start := time.Now()
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("request konnte nicht erstellt werden: %w", err)
-	}
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("API nicht erreichbar: %w", err)
-	}
-	defer resp.Body.Close()
-
-	logf("Status: %d %s (%.0fms)", resp.StatusCode, http.StatusText(resp.StatusCode), float64(time.Since(start).Milliseconds()))
-
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("Fahrzeug mit ID %q nicht gefunden", id)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unerwarteter HTTP-Status %d", resp.StatusCode)
-	}
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("Antwort konnte nicht gelesen werden: %w", err)
-	}
-	logf("Response: %d bytes", len(body))
-	return body, nil
-}
 
 // --- CLI dispatcher ---
 
@@ -243,6 +65,37 @@ func main() {
 	}
 }
 
+func cmdVehicle(args []string) error {
+	fs := flag.NewFlagSet("vehicle", flag.ContinueOnError)
+	textMode := fs.Bool("text", false, "Lesbare Textausgabe statt JSON")
+	verboseFlag := fs.Bool("verbose", false, "Aufgerufene URLs, Status-Codes, Datenwarnungen")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() < 1 {
+		return fmt.Errorf("verwendung: vehicle [-text] [-verbose] <id>")
+	}
+	id := fs.Arg(0)
+	if n, err := strconv.Atoi(id); err != nil || n <= 0 {
+		return fmt.Errorf("vehicle-id muss ein positiver Integer sein, got %q", id)
+	}
+
+	fc := client.NewFuelEconomyClient(nil, nil, *verboseFlag)
+	vehicle, err := fc.GetVehicle(id)
+	if err != nil {
+		return err
+	}
+
+	if *textMode {
+		printVehicleText(vehicle)
+		return nil
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(vehicle)
+}
+
 func cmdValidateEmail(args []string) error {
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "usage: validate-email <email>")
@@ -260,153 +113,6 @@ func cmdValidateEmail(args []string) error {
 	}
 	fmt.Printf("OK: %s\n", email)
 	return nil
-}
-
-func extractDomain(email string) string {
-	parts := strings.SplitN(email, "@", 2)
-	if len(parts) == 2 {
-		return parts[1]
-	}
-	return email
-}
-
-func cmdVehicle(args []string) error {
-	fs := flag.NewFlagSet("vehicle", flag.ContinueOnError)
-	textMode := fs.Bool("text", false, "Lesbare Textausgabe statt JSON")
-	verboseFlag := fs.Bool("verbose", false, "Aufgerufene URLs, Status-Codes, Datenwarnungen")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if fs.NArg() < 1 {
-		return fmt.Errorf("verwendung: vehicle [-text] [-verbose] <id>")
-	}
-
-	verbose = *verboseFlag
-
-	data, err := fetchVehicle(fs.Arg(0))
-	if err != nil {
-		return err
-	}
-
-	if !*textMode {
-		fmt.Println(string(data))
-		return nil
-	}
-
-	var v Vehicle
-	if err := json.Unmarshal(data, &v); err != nil {
-		return fmt.Errorf("JSON konnte nicht geparst werden: %w", err)
-	}
-
-	checkDataQuality(v)
-	fmt.Print(v.FormatText())
-	return nil
-}
-
-func cmdServe(args []string) error {
-	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
-	port := fs.String("port", "8081", "Port auf dem der Server lauscht")
-	verboseMode := fs.Bool("verbose", false, "Cache-Treffer und -Misses auf stderr ausgeben")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-
-	ctx := context.Background()
-	vc := cache.NewVehicleCache(10000, ctx)
-	fc := client.NewFuelEconomyClient(nil, vc, *verboseMode)
-	ev := validator.NewEmailValidator(validator.NewDisposableChecker())
-	ec := cache.NewEmailCache(6*time.Hour, ctx)
-	rl := cache.NewRateLimiter(1000, time.Minute, ctx)
-	h := handler.New(ev, ec, rl, fc, *verboseMode)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /vehicle/{id}", h.GetVehicle)
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"error":"not found","usage":"GET /vehicle/{id}?email=user@example.com"}`))
-	})
-
-	addr := ":" + *port
-	fmt.Fprintf(os.Stderr, "[serve] listening on %s\n", addr)
-	return http.ListenAndServe(addr, mux)
-}
-
-func cmdFetch(args []string) error {
-	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
-	textMode := fs.Bool("text", false, "Lesbare Textausgabe statt JSON")
-	verboseMode := fs.Bool("verbose", false, "Verbose-Ausgabe")
-	if err := fs.Parse(args); err != nil {
-		return err
-	}
-	if fs.NArg() < 2 {
-		fmt.Fprintln(os.Stderr, "usage: fetch [-text] [-verbose] <vehicle-id> <email>")
-		os.Exit(1)
-	}
-	vehicleID := fs.Arg(0)
-	email := fs.Arg(1)
-
-	vlog := func(prefix, msg string) {
-		if *verboseMode {
-			fmt.Fprintf(logWriter, "[%s] %s\n", prefix, msg)
-		}
-	}
-
-	// E-Mail: Cache prüfen, ggf. validieren
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	c := cache.NewEmailCache(time.Hour, ctx)
-
-	if c.IsVerified(email) {
-		vlog("cache", "HIT: "+email)
-	} else {
-		vlog("cache", "MISS: "+email+" — validating...")
-		ev := validator.NewEmailValidator(validator.NewDisposableChecker())
-		if err := ev.Validate(email); err != nil {
-			if strings.Contains(err.Error(), "disposable") {
-				fmt.Fprintf(os.Stderr, "BLOCKED: disposable email (domain: %s)\n", extractDomain(email))
-			} else {
-				fmt.Fprintf(os.Stderr, "fehler: %v\n", err)
-			}
-			os.Exit(1)
-		}
-		c.Add(email)
-		vlog("cache", "ADDED: "+email)
-	}
-
-	// Vehicle-ID: positiver Integer
-	id, err := strconv.Atoi(vehicleID)
-	if err != nil || id <= 0 {
-		return fmt.Errorf("vehicle-id muss ein positiver Integer sein, got %q", vehicleID)
-	}
-
-	// Fahrzeugdaten via Client (mit Cache)
-	vc := cache.NewVehicleCache(10000, ctx)
-	fc := client.NewFuelEconomyClient(nil, vc, *verboseMode)
-
-	vlog("api", "fetching vehicle "+vehicleID+"...")
-	vehicle, err := fc.GetVehicle(vehicleID)
-	if err != nil {
-		return err
-	}
-	vlog("api", "OK (200)")
-
-	if *textMode {
-		co2Str := "n/a"
-		if vehicle.CO2 != nil {
-			co2Str = fmt.Sprintf("%.1f g/mi", *vehicle.CO2)
-		}
-		fmt.Printf("%s %s (%d)\n", vehicle.Make, vehicle.Model, vehicle.Year)
-		fmt.Printf("Fuel: %s\n", vehicle.FuelType)
-		fmt.Printf("City: %d | Highway: %d | Combined: %d\n", vehicle.City08, vehicle.Highway08, vehicle.Comb08)
-		fmt.Printf("CO2: %s\n", co2Str)
-		fmt.Printf("Class: %s\n", vehicle.VClass)
-		return nil
-	}
-
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(vehicle)
 }
 
 func cmdCheckEmail(args []string) error {
@@ -439,4 +145,121 @@ func cmdCheckEmail(args []string) error {
 	c.Add(email)
 	fmt.Printf("OK: %s (added to cache)\n", email)
 	return nil
+}
+
+func cmdFetch(args []string) error {
+	fs := flag.NewFlagSet("fetch", flag.ContinueOnError)
+	textMode := fs.Bool("text", false, "Lesbare Textausgabe statt JSON")
+	verboseMode := fs.Bool("verbose", false, "Verbose-Ausgabe")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if fs.NArg() < 2 {
+		fmt.Fprintln(os.Stderr, "usage: fetch [-text] [-verbose] <vehicle-id> <email>")
+		os.Exit(1)
+	}
+	vehicleID := fs.Arg(0)
+	email := fs.Arg(1)
+
+	vlog := func(prefix, msg string) {
+		if *verboseMode {
+			fmt.Fprintf(os.Stderr, "[%s] %s\n", prefix, msg)
+		}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// E-Mail: Cache prüfen, ggf. validieren
+	c := cache.NewEmailCache(time.Hour, ctx)
+	if c.IsVerified(email) {
+		vlog("cache", "HIT: "+email)
+	} else {
+		vlog("cache", "MISS: "+email+" — validating...")
+		ev := validator.NewEmailValidator(validator.NewDisposableChecker())
+		if err := ev.Validate(email); err != nil {
+			if strings.Contains(err.Error(), "disposable") {
+				fmt.Fprintf(os.Stderr, "BLOCKED: disposable email (domain: %s)\n", extractDomain(email))
+			} else {
+				fmt.Fprintf(os.Stderr, "fehler: %v\n", err)
+			}
+			os.Exit(1)
+		}
+		c.Add(email)
+		vlog("cache", "ADDED: "+email)
+	}
+
+	// Vehicle-ID: positiver Integer
+	id, err := strconv.Atoi(vehicleID)
+	if err != nil || id <= 0 {
+		return fmt.Errorf("vehicle-id muss ein positiver Integer sein, got %q", vehicleID)
+	}
+
+	vc := cache.NewVehicleCache(10000, ctx)
+	fc := client.NewFuelEconomyClient(nil, vc, *verboseMode)
+
+	vlog("api", "fetching vehicle "+vehicleID+"...")
+	vehicle, err := fc.GetVehicle(vehicleID)
+	if err != nil {
+		return err
+	}
+	vlog("api", "OK (200)")
+
+	if *textMode {
+		printVehicleText(vehicle)
+		return nil
+	}
+
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(vehicle)
+}
+
+func cmdServe(args []string) error {
+	fs := flag.NewFlagSet("serve", flag.ContinueOnError)
+	port := fs.String("port", "8081", "Port auf dem der Server lauscht")
+	verboseMode := fs.Bool("verbose", false, "Cache-Treffer und -Misses auf stderr ausgeben")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	vc := cache.NewVehicleCache(10000, ctx)
+	fc := client.NewFuelEconomyClient(nil, vc, *verboseMode)
+	ev := validator.NewEmailValidator(validator.NewDisposableChecker())
+	ec := cache.NewEmailCache(6*time.Hour, ctx)
+	rl := cache.NewRateLimiter(1000, time.Minute, ctx)
+	h := handler.New(ev, ec, rl, fc, *verboseMode)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /vehicle/{id}", h.GetVehicle)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"error":"not found","usage":"GET /vehicle/{id}?email=user@example.com"}`))
+	})
+
+	addr := ":" + *port
+	fmt.Fprintf(os.Stderr, "[serve] listening on %s\n", addr)
+	return http.ListenAndServe(addr, mux)
+}
+
+func printVehicleText(v *client.VehicleData) {
+	co2Str := "n/a"
+	if v.CO2 != nil {
+		co2Str = fmt.Sprintf("%.1f g/mi", *v.CO2)
+	}
+	fmt.Printf("%s %s (%d)\n", v.Make, v.Model, v.Year)
+	fmt.Printf("Fuel: %s\n", v.FuelType)
+	fmt.Printf("City: %d | Highway: %d | Combined: %d\n", v.City08, v.Highway08, v.Comb08)
+	fmt.Printf("CO2: %s\n", co2Str)
+	fmt.Printf("Class: %s\n", v.VClass)
+}
+
+func extractDomain(email string) string {
+	parts := strings.SplitN(email, "@", 2)
+	if len(parts) == 2 {
+		return parts[1]
+	}
+	return email
 }

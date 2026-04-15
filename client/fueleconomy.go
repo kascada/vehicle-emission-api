@@ -47,16 +47,23 @@ type rawVehicle struct {
 // FuelEconomyClient ruft Fahrzeugdaten von der FuelEconomy.gov API ab.
 // cache ist optional (nil = kein Caching).
 type FuelEconomyClient struct {
+	baseURL    string
 	httpClient *http.Client
 	cache      *cache.VehicleCache
 	verbose    bool
 }
 
 func NewFuelEconomyClient(httpClient *http.Client, vc *cache.VehicleCache, verbose bool) *FuelEconomyClient {
+	return NewFuelEconomyClientWithBaseURL(baseURL, httpClient, vc, verbose)
+}
+
+// NewFuelEconomyClientWithBaseURL erstellt einen Client mit überschriebener Base-URL (für Tests).
+func NewFuelEconomyClientWithBaseURL(url string, httpClient *http.Client, vc *cache.VehicleCache, verbose bool) *FuelEconomyClient {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: clientTimeout}
 	}
 	return &FuelEconomyClient{
+		baseURL:    url,
 		httpClient: httpClient,
 		cache:      vc,
 		verbose:    verbose,
@@ -87,7 +94,7 @@ func (c *FuelEconomyClient) GetVehicle(id string) (*VehicleData, error) {
 		}
 	}
 
-	url := fmt.Sprintf("%s/%s", baseURL, id)
+	url := fmt.Sprintf("%s/%s", c.baseURL, id)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)

@@ -9,12 +9,12 @@ import (
 // RateLimiter begrenzt Anfragen pro Schlüssel (z.B. E-Mail) innerhalb eines Zeitfensters.
 type RateLimiter struct {
 	mu      sync.Mutex
-	entries map[string]*window
+	entries map[string]*rateWindow
 	limit   int
 	window  time.Duration
 }
 
-type window struct {
+type rateWindow struct {
 	count  int
 	start  time.Time
 }
@@ -23,7 +23,7 @@ type window struct {
 // limit ist die maximale Anzahl Anfragen pro Zeitfenster.
 func NewRateLimiter(limit int, window time.Duration, ctx context.Context) *RateLimiter {
 	rl := &RateLimiter{
-		entries: make(map[string]*window),
+		entries: make(map[string]*rateWindow),
 		limit:   limit,
 		window:  window,
 	}
@@ -41,7 +41,7 @@ func (rl *RateLimiter) Allow(key string) bool {
 	w, exists := rl.entries[key]
 
 	if !exists || now.Sub(w.start) >= rl.window {
-		rl.entries[key] = &window{count: 1, start: now}
+		rl.entries[key] = &rateWindow{count: 1, start: now}
 		return true
 	}
 

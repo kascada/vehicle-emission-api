@@ -188,4 +188,5 @@ Allerdings wird vorher auch der Apache abfangen, etwa ab 50
 
 ### Ergebnis
 
-Cache auch für Anfragen
+Einzelnes Go-Binary ohne externe Dependencies. 
+Enthält HTTP-Server, Email-Validierung, Caching und CLI.

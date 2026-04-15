@@ -45,14 +45,8 @@ if [ "$STATUS" = "400" ]; then echo "  OK  400 invalid ID"; else echo "  FAIL ex
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/")
 if [ "$STATUS" = "404" ]; then echo "  OK  404 root"; else echo "  FAIL expected 404, got $STATUS"; FAIL=1; fi
 
-# Rate Limit → 429 (61 Requests mit eigener Email)
-EMAIL="smoke-ratelimit@gmail.com"
-GOT429=0
-for i in $(seq 1 61); do
-    STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/vehicle/47085?email=$EMAIL")
-    if [ "$STATUS" = "429" ]; then GOT429=1; break; fi
-done
-if [ "$GOT429" = "1" ]; then echo "  OK  429 rate limit"; else echo "  FAIL expected 429 after 61 requests"; FAIL=1; fi
+# Rate Limit: nicht im Smoke-Test (1000 req/min zu langsam per curl).
+# Wird über go test ./handler/ (Integration-Test) geprüft.
 
 if [ "$FAIL" = "1" ]; then echo "SMOKE TEST FAILED"; exit 1; fi
 echo "Done. All smoke tests passed."

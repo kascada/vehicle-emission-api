@@ -1,13 +1,25 @@
 # Vehicle Emission API
 
-CLI-Tool und HTTP-API zum Abrufen von Fahrzeug- und Emissionsdaten über die [fueleconomy.gov API](https://www.fueleconomy.gov/feg/ws/index.shtml).
+Einzelnes Go-Binary ohne externe Dependencies. Enthält HTTP-Server, Email-Validierung, Caching und CLI.
 
-**Live:** [https://vehicle.akte.de/vehicle/47085?email=user@gmail.com](https://vehicle.akte.de/vehicle/47085?email=user@gmail.com)
+```
+vehicle-api serve -port 8081
+```
 
-## Voraussetzungen
+Weitere Parameter und CLI-Befehle siehe unten.
 
-- Go 1.22+
-- Keine externen Dependencies
+**Live:** https://vehicle.akte.de/vehicle/47085?email=user@gmail.com
+
+**Datenquelle:** https://www.fueleconomy.gov/ — Aufrufe und Email-Validierungen werden gecached. Antwortzeit mit Cache ca. 13ms pro Request.
+
+## Installation
+
+Go 1.22+ erforderlich, keine externen Dependencies.
+
+```bash
+CGO_ENABLED=0 go build -o vehicle-api
+./vehicle-api serve -port 8081
+```
 
 ## Befehle
 

@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(go build:*)"
+      "Bash(go build:*)",
+      "Bash(go test:*)"
+    ],
+    "additionalDirectories": [
+      "/mnt/e/HiDriveSync/Kamran/CodingChallenge"
     ]
   }
 }

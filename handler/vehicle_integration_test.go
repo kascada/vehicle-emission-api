@@ -100,9 +100,9 @@ func TestLiveAPI(t *testing.T) {
 	})
 
 	t.Run("rate limit returns 429", func(t *testing.T) {
-		// Eigene Email um andere Tests nicht zu stören
+		// 1001 Requests um globales Limit von 1000/min auszulösen
 		email := "ratelimit-test@gmail.com"
-		for i := 0; i < 61; i++ {
+		for i := 0; i < 1001; i++ {
 			resp, err := http.Get(baseURL + "/vehicle/47085?email=" + email)
 			if err != nil {
 				t.Fatalf("request %d failed: %v", i, err)
@@ -113,7 +113,7 @@ func TestLiveAPI(t *testing.T) {
 				return // Erfolg: Rate Limit greift
 			}
 		}
-		t.Error("expected 429 after 60 requests, but all succeeded")
+		t.Error("expected 429 after 1000 requests, but all succeeded")
 	})
 
 	t.Run("email via header works", func(t *testing.T) {
