@@ -4,14 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
-	"sync"
 	"time"
+
+	"github.com/kamran/vehicle-emission-api/cache"
 )
 
 const (
-	baseURL      = "https://www.fueleconomy.gov/ws/rest/vehicle"
-	cacheTTL     = 24 * time.Hour
+	baseURL       = "https://www.fueleconomy.gov/ws/rest/vehicle"
 	clientTimeout = 10 * time.Second
 )
 
@@ -43,25 +44,28 @@ type rawVehicle struct {
 	FuelType1      string `json:"fuelType1"`
 }
 
-type cacheEntry struct {
-	data      *VehicleData
-	fetchedAt time.Time
-}
-
 // FuelEconomyClient ruft Fahrzeugdaten von der FuelEconomy.gov API ab.
+// cache ist optional (nil = kein Caching).
 type FuelEconomyClient struct {
 	httpClient *http.Client
-	cache      map[string]cacheEntry
-	mu         sync.RWMutex
+	cache      *cache.VehicleCache
+	verbose    bool
 }
 
-func NewFuelEconomyClient(httpClient *http.Client) *FuelEconomyClient {
+func NewFuelEconomyClient(httpClient *http.Client, vc *cache.VehicleCache, verbose bool) *FuelEconomyClient {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: clientTimeout}
 	}
 	return &FuelEconomyClient{
 		httpClient: httpClient,
-		cache:      make(map[string]cacheEntry),
+		cache:      vc,
+		verbose:    verbose,
+	}
+}
+
+func (c *FuelEconomyClient) vlog(format string, args ...any) {
+	if c.verbose {
+		fmt.Fprintf(os.Stderr, format+"\n", args...)
 	}
 }
 
@@ -69,17 +73,20 @@ func NewFuelEconomyClient(httpClient *http.Client) *FuelEconomyClient {
 var ErrVehicleNotFound = fmt.Errorf("vehicle not found")
 
 // GetVehicle ruft die Fahrzeugdaten für eine ID ab.
-// Nutzt einen In-Memory-Cache mit TTL.
+// Bei gesetztem Cache wird erst dort nachgeschaut (HIT/MISS geloggt wenn verbose).
 func (c *FuelEconomyClient) GetVehicle(id string) (*VehicleData, error) {
-	// Cache prüfen
-	c.mu.RLock()
-	if entry, ok := c.cache[id]; ok && time.Since(entry.fetchedAt) < cacheTTL {
-		c.mu.RUnlock()
-		return entry.data, nil
+	if c.cache != nil {
+		if data, ok := c.cache.Get(id); ok {
+			c.vlog("[vcache] HIT:  %s", id)
+			var v VehicleData
+			if err := json.Unmarshal(data, &v); err == nil {
+				return &v, nil
+			}
+		} else {
+			c.vlog("[vcache] MISS: %s — fetching from API...", id)
+		}
 	}
-	c.mu.RUnlock()
 
-	// Extern abrufen
 	url := fmt.Sprintf("%s/%s", baseURL, id)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -107,10 +114,12 @@ func (c *FuelEconomyClient) GetVehicle(id string) (*VehicleData, error) {
 
 	data := mapToVehicleData(&raw)
 
-	// Cache speichern
-	c.mu.Lock()
-	c.cache[id] = cacheEntry{data: data, fetchedAt: time.Now()}
-	c.mu.Unlock()
+	if c.cache != nil {
+		if b, err := json.Marshal(data); err == nil {
+			c.cache.Set(id, b)
+			c.vlog("[vcache] SET:  %s (%d bytes)", id, len(b))
+		}
+	}
 
 	return data, nil
 }
