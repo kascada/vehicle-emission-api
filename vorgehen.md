@@ -14,7 +14,7 @@ Sie ist tatsächlich auch einfach und funktional. Habe Claude gebeten, etwas tie
 
 Die entscheidende Frage ist das Design der API, und dabei ist eigentlich nur gegeben, dass zuerst die
 E-Mail-Adresse geprüft werden soll.
-Naheliegend ist es, nach erfolgreicher Prüfung ein Token zu übergeben, das jedesmal zur Authentifizierung mitgegeben werden muss.
+Naheliegend ist es, nach erfolgreicher Prüfung ein Token zu übergeben, das jedes Mal zur Authentifizierung mitgegeben werden muss.
 
 Das Handling ist zwar einfach, aber für diesen Fall führt es für den Anwender zu unnötigem Aufwand.
 Zusätzlich müsste das Token und die E-Mail in einem Cache gehalten werden. Startet das Programm aber neu,
@@ -147,17 +147,17 @@ TTL vom Cache wird alle 10min geprüft und altes entfernt, das älter als 6h ist
 
 ## Cache für Daten
 
-Die Abfargen werden gecached, so kann eine eventuelle Nichterreichbarkeit der Datenquelle eventuell abgefangen werden
+Die Abfragen werden gecached, so kann eine eventuelle Nichterreichbarkeit der Datenquelle eventuell abgefangen werden
 
 ## Deployment auf meinen Server
 
-Build mit für binary, Deployment auf meinen Server, Subdomain eingerichtet, SSL aktiviert.
+Build für binary, Deployment auf meinen Server, Subdomain eingerichtet, SSL aktiviert.
 Proxy für Apache. 
 
 Wenn fehlerhafter Aufruf, wird eine 404 generiert mit Hinweis:
  {"error":"not found","usage":"GET /vehicle/{id}?email=user@example.com"}
 
-## automatishce Tests
+## automatische Tests
 
 Zu den Unit-Tests noch ein Smoke-Test im Deploy-Skript 
 und ein Go-Test mit -short Guard 
@@ -167,19 +167,22 @@ Aufruf:  go test
 
 ## Geschwindigkeit
 
-Test mit Cache gemittelt über 209 Aurufe:
- 47.5ms  von extern über DSL
- 12.6ms  vom Server selbst
+| Messung | Latenz |
+|---------|--------|
+| Von extern | 47,5 ms |
+| Vom Server selbst (DSL) | 12,6 ms |
+
+> Gemittelt über 209 Aufrufe, mit aktivem Cache.
  
 
  ## Vorgaben prüfen
 
-Claude darauf angesetzt zu pürfen, ob alles Konsistent ist und alle Vorgaben erfüllt wurden
+Claude darauf angesetzt zu prüfen, ob alles Konsistent ist und alle Vorgaben erfüllt wurden
 Rate-Limit fehlt noch.
 
 ## Rate Limit
 
-Begrenzung per email-Adresse nicht sinnvoll, denn es kannja leicht iteriert werden:
+Begrenzung per email-Adresse nicht sinnvoll, denn es kann ja leicht iteriert werden:
   1name@gmail.com 2name@gmail.com
 Also einen globalen Zähler.
 Wir nehmen 1000 Req/min
