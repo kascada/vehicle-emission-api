@@ -47,6 +47,7 @@ Daher werde ich es in Go schreiben, so dass keine weiteren Libraries nötig sind
 Verzeichnis anlegen, Git vorbereiten, Go-Basis erstellen.
 
 Für Claude grundsätzliches Vorgehen vorgeben, etwas Schritt für Schritt:
+Alles in PROMPT.md
 
 1. Erstellung des `main` für CLI
 2. Alle Funktionen werden der Reihe nach als CLI-Funktion jeweils mit Unit-Tests erstellt
@@ -121,7 +122,7 @@ Der Cache hat pro Eintrag eine Verfallszeit.
 go run main.go check-email test@gmail.com
 ```
 
-### API
+### API als CLI-Test
 
 Für die API haben wir zwei Aufrufarten:
 
@@ -135,16 +136,30 @@ API-Test per CLI eingebaut:
 go run main.go fetch -verbose -text 47085 user@gmail.com
 
 
+### API 
+
+API mit Port 8081 oder Parameter -port aufrufbar
+
+go run main.go serve -verbose
+
+TTL vom Cache wird alle 10min geprüft und altes entfernt, das älter als 6h ist
 
 
 
 
+
+
+
+### Ergebnis
+
+Cache auch für Anfragen
 
 ---
 
 ## Offene Punkte
 
-- Cache-Größe und Verfall prüfen
+- Cache für die Anfragen
 - Prüfen, ob alle Vorgaben erfüllt
 - verbose auch bei API? miss testen
 - short -Guard
+- Testen, wenn Quelle nicht erreichbar
