@@ -17,12 +17,13 @@ import (
 type Handler struct {
 	emailValidator *validator.EmailValidator
 	emailCache     *cache.EmailCache
+	rateLimiter    *cache.RateLimiter
 	fuelClient     *client.FuelEconomyClient
 	verbose        bool
 }
 
-func New(ev *validator.EmailValidator, ec *cache.EmailCache, fc *client.FuelEconomyClient, verbose bool) *Handler {
-	return &Handler{emailValidator: ev, emailCache: ec, fuelClient: fc, verbose: verbose}
+func New(ev *validator.EmailValidator, ec *cache.EmailCache, rl *cache.RateLimiter, fc *client.FuelEconomyClient, verbose bool) *Handler {
+	return &Handler{emailValidator: ev, emailCache: ec, rateLimiter: rl, fuelClient: fc, verbose: verbose}
 }
 
 // GetVehicle behandelt GET /vehicle/{id}
@@ -56,7 +57,13 @@ func (h *Handler) GetVehicle(w http.ResponseWriter, r *http.Request) {
 		h.vlog("[cache] ADDED: " + email)
 	}
 
-	// 3. Fahrzeug-ID validieren
+	// 3. Rate Limiting (global)
+	if !h.rateLimiter.Allow("global") {
+		writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
+		return
+	}
+
+	// 4. Fahrzeug-ID validieren
 	idStr := r.PathValue("id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil || id <= 0 {

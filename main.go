@@ -316,7 +316,8 @@ func cmdServe(args []string) error {
 	fc := client.NewFuelEconomyClient(nil, vc, *verboseMode)
 	ev := validator.NewEmailValidator(validator.NewDisposableChecker())
 	ec := cache.NewEmailCache(6*time.Hour, ctx)
-	h := handler.New(ev, ec, fc, *verboseMode)
+	rl := cache.NewRateLimiter(1000, time.Minute, ctx)
+	h := handler.New(ev, ec, rl, fc, *verboseMode)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /vehicle/{id}", h.GetVehicle)

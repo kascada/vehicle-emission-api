@@ -155,7 +155,12 @@ Alle anderen Pfade liefern einen JSON-Hinweis mit 404:
 | 401    | Keine E-Mail angegeben                     |
 | 403    | Wegwerf-E-Mail-Adresse                     |
 | 404    | Fahrzeug-ID nicht gefunden                 |
+| 429    | Rate Limit überschritten (1000 req/min)    |
 | 502    | Upstream-Fehler (fueleconomy.gov)          |
+
+### Rate Limiting
+
+Globales Limit von 1000 Requests pro Minute über alle Anfragen. Der Zähler ist bewusst global statt pro Email, da eine Email-basierte Begrenzung durch Iteration der Adressen trivial zu umgehen wäre. Nach Ablauf des Zeitfensters wird der Zähler zurückgesetzt.
 
 ## Fehlerbehandlung
 

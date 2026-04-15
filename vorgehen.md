@@ -157,18 +157,35 @@ Proxy für Apache.
 Wenn fehlerhafter Aufruf, wird eine 404 generiert mit Hinweis:
  {"error":"not found","usage":"GET /vehicle/{id}?email=user@example.com"}
 
+## automatishce Tests
+
+Zu den Unit-Tests noch ein Smoke-Test im Deploy-Skript 
+und ein Go-Test mit -short Guard 
+Aufruf:  go test
+(zum Überspringen: go test -short)
+
+
+## Geschwindigkeit
+
+Test mit Cache gemittelt über 209 Aurufe:
+ 47.5ms  von extern über DSL
+ 12.6ms  vom Server selbst
+ 
+
+ ## Vorgaben prüfen
+
+Claude darauf angesetzt zu pürfen, ob alles Konsistent ist und alle Vorgaben erfüllt wurden
+Rate-Limit fehlt noch.
+
+## Rate Limit
+
+Begrenzung per email-Adresse nicht sinnvoll, denn es kannja leicht iteriert werden:
+  1name@gmail.com 2name@gmail.com
+Also einen globalen Zähler.
+Wir nehmen 1000 Req/min
+Allerdings wird vorher auch der Apache abfangen, etwa ab 50
 
 
 ### Ergebnis
 
 Cache auch für Anfragen
-
----
-
-## Offene Punkte
-
-- Prüfen, ob alle Vorgaben erfüllt
-
-- short -Guard
-- Testen, wenn Quelle nicht erreichbar
-- Geschwindigkeit testen
