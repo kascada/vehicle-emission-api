@@ -6,3 +6,85 @@ Die geforderte API ist recht einfach, daher lasse ich als erstes die Datenquelle
 https://www.fueleconomy.gov/feg/ws/ von Claude anschauen und analysieren.
 
 Sie ist tatsächlich auch einfach und funktional. Habe Claude gebeten, etwas tiefer zu schauen und einige Beispiele auszuprobieren. Dabei sind ein paar Inkonsistenzen aufgetaucht, die in eine separate Datei notiert wurden.
+
+
+## Design-Entscheidungen
+
+### Authentifizierung
+
+Die entscheidende Frage ist das Design der API, und dabei ist eigentlich nur gegeben, dass zuerst die
+E-Mail-Adresse geprüft werden soll.
+Naheliegend ist es, nach erfolgreicher Prüfung ein Token zu übergeben, das jedesmal zur Authentifizierung mitgegeben werden muss.
+
+Das Handling ist zwar einfach, aber für diesen Fall führt es für den Anwender zu unnötigem Aufwand.
+Zusätzlich müsste das Token und die E-Mail in einem Cache gehalten werden. Startet das Programm aber neu,
+wäre es weg und der Anwender würde eine Fehlermeldung bekommen — das ist inakzeptabel, weswegen wir eine
+externe Datenbank (Key-Value) bräuchten. Diese zusätzliche Komplexität lässt sich leicht umgehen:
+
+Wir prüfen beim ersten Aufruf die E-Mail und legen das Ergebnis in den Cache.
+Nur bei einem Neustart oder Ablauf des Caches wird neu geprüft.
+
+Damit haben wir das optimale Ergebnis:
+
+- Als erstes wird die E-Mail geprüft, wie gefordert
+- Der User braucht kein Token
+- Das Programm kann jederzeit neu gestartet werden
+- Keine zusätzliche Datenbank nötig
+- Deutlich effizienter als die Token-Variante
+
+### Technologie-Stack
+
+Benötigt wird nur ein Webserver für den API-Endpoint.
+Daher werde ich es in Go schreiben, so dass keine weiteren Libraries nötig sind.
+
+
+---
+
+## Umsetzung
+
+### Projektsetup
+
+Verzeichnis anlegen, Git vorbereiten, Go-Basis erstellen.
+
+Für Claude grundsätzliches Vorgehen vorgeben, etwas Schritt für Schritt:
+
+1. Erstellung des `main` für CLI
+2. Alle Funktionen werden der Reihe nach als CLI-Funktion jeweils mit Unit-Tests erstellt
+3. API-Integration zum Schluss
+
+### Datenabruf
+
+Als erstes der Abruf der Daten, CLI gibt es lesbar aus.
+
+```
+go run main.go vehicle -text -verbose 47913
+```
+
+
+Ausgabe lesbar, Inkonsistenzen werden erkannt.
+
+Unit-Test integriert ohne Netzwerkverbindung:
+
+```
+go test -v ./...
+```
+
+### E-Mail-Verifikation
+
+Domains der Wegwerf-Adressen werden einmalig geladen und können jederzeit aktualisiert werden.
+Diese werden per `embed` direkt in den Code kompiliert, daher kein Container o. Ä. nötig.
+Download bei Programmstart wäre eine Alternative, aber die Liste ändert sich zu selten —
+würde den Start nur unnötig verzögern.
+
+Parsen der E-Mail, Syntax wird geprüft und mit der Liste abgeglichen.
+
+Verifikation per CLI:
+
+```
+go run main.go validate-email notvalid
+go run main.go validate-email wegwerf@10mail.org
+```
+
+Unit-Test erweitert, wird automatisch nach dem Build ausgeführt.
+
+

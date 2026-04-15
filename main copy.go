@@ -198,6 +198,7 @@ func fetchVehicle(id string) ([]byte, error) {
 func usage() {
 	fmt.Fprintln(os.Stderr, "usage:")
 	fmt.Fprintln(os.Stderr, "  vehicle-emission-api vehicle [flags] <id>   Fahrzeugdaten abrufen")
+	fmt.Fprintln(os.Stderr, "  vehicle-emission-api validate-email <email> E-Mail-Adresse prüfen")
 	fmt.Fprintln(os.Stderr, "  vehicle-emission-api check-email <email>    E-Mail prüfen (mit Cache)")
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, "flags (vehicle):")
@@ -218,6 +219,8 @@ func main() {
 	switch cmd {
 	case "vehicle":
 		err = cmdVehicle(args)
+	case "validate-email":
+		err = cmdValidateEmail(args)
 	case "check-email":
 		err = cmdCheckEmail(args)
 	default:
@@ -230,6 +233,25 @@ func main() {
 		fmt.Fprintf(os.Stderr, "fehler: %v\n", err)
 		os.Exit(1)
 	}
+}
+
+func cmdValidateEmail(args []string) error {
+	if len(args) < 1 {
+		fmt.Fprintln(os.Stderr, "usage: validate-email <email>")
+		os.Exit(1)
+	}
+	email := args[0]
+	v := validator.NewEmailValidator(validator.NewDisposableChecker())
+	if err := v.Validate(email); err != nil {
+		if strings.Contains(err.Error(), "disposable") {
+			fmt.Fprintf(os.Stderr, "BLOCKED: disposable email (domain: %s)\n", extractDomain(email))
+		} else {
+			fmt.Fprintf(os.Stderr, "fehler: %v\n", err)
+		}
+		os.Exit(1)
+	}
+	fmt.Printf("OK: %s\n", email)
+	return nil
 }
 
 func extractDomain(email string) string {
