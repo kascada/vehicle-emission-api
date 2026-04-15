@@ -153,6 +153,8 @@ Einfacher zum Testen im Browser oder auf der Kommandozeile. Die E-Mail landet al
 
 Header hat Vorrang. Wenn beide angegeben sind, wird der Header verwendet.
 
+Die Root-URL (`/`) zeigt eine eingebettete HTML-Dokumentation der API. Die Doku wird per `go:embed` ins Binary kompiliert — keine extra Datei auf dem Server nötig.
+
 Alle anderen Pfade liefern einen JSON-Hinweis mit 404:
 
 ```json

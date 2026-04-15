@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -16,6 +17,9 @@ import (
 	"github.com/kamran/vehicle-emission-api/handler"
 	"github.com/kamran/vehicle-emission-api/validator"
 )
+
+//go:embed docs/index.html
+var docsHTML []byte
 
 // --- CLI dispatcher ---
 
@@ -234,6 +238,11 @@ func cmdServe(args []string) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /vehicle/{id}", h.GetVehicle)
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write(docsHTML)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte(`{"error":"not found","usage":"GET /vehicle/{id}?email=user@example.com"}`))

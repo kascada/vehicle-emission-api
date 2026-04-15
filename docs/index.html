@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vehicle Emission API</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #1a1a1a; line-height: 1.6; max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem; }
+  h1 { font-size: 1.6rem; margin-bottom: 0.3rem; }
+  h2 { font-size: 1.15rem; margin-top: 2rem; margin-bottom: 0.5rem; border-bottom: 1px solid #ddd; padding-bottom: 0.3rem; }
+  p { margin-bottom: 0.8rem; }
+  .subtitle { color: #666; margin-bottom: 1.5rem; }
+  code { background: #f4f4f4; padding: 0.15em 0.4em; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #f4f4f4; padding: 1rem; border-radius: 6px; overflow-x: auto; margin: 0.8rem 0; font-size: 0.85rem; line-height: 1.5; }
+  pre code { background: none; padding: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 0.8rem 0; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.5rem 0.75rem; border-bottom: 1px solid #eee; }
+  th { font-weight: 600; border-bottom: 2px solid #ddd; }
+  .status { font-family: monospace; font-weight: 600; }
+  .s2 { color: #16a34a; }
+  .s4 { color: #dc2626; }
+  .try { margin: 1rem 0; }
+  .try a { color: #2563eb; text-decoration: none; word-break: break-all; }
+  .try a:hover { text-decoration: underline; }
+  .note { background: #fefce8; border-left: 3px solid #ca8a04; padding: 0.6rem 0.8rem; margin: 0.8rem 0; font-size: 0.9rem; }
+</style>
+</head>
+<body>
+
+<h1>Vehicle Emission API</h1>
+<p class="subtitle">Fuel economy and CO2 emission data for US vehicles</p>
+
+<h2>Endpoint</h2>
+<pre><code>GET /vehicle/{id}?email=your@email.com</code></pre>
+
+<p>Returns fuel economy and emission data for a vehicle by its <a href="https://www.fueleconomy.gov/" style="color:#2563eb">fueleconomy.gov</a> ID.</p>
+
+<div class="try">
+  Try it: <a href="https://vehicle.akte.de/vehicle/47085?email=user@gmail.com">https://vehicle.akte.de/vehicle/47085?email=user@gmail.com</a>
+</div>
+
+<h2>Authentication</h2>
+<p>Every request requires a valid email address. Disposable email providers are blocked.</p>
+
+<p><strong>Option 1 &mdash; Header (recommended):</strong></p>
+<pre><code>curl -H "Email: user@gmail.com" https://vehicle.akte.de/vehicle/47085</code></pre>
+
+<p><strong>Option 2 &mdash; Query parameter:</strong></p>
+<pre><code>curl "https://vehicle.akte.de/vehicle/47085?email=user@gmail.com"</code></pre>
+
+<p>If both are provided, the header takes precedence.</p>
+
+<h2>Response</h2>
+<pre><code>{
+  "make": "Toyota",
+  "model": "Camry",
+  "year": 2024,
+  "city08": 22,
+  "highway08": 33,
+  "comb08": 26,
+  "co2": 338,
+  "vclass": "Midsize Cars",
+  "fuelType": "Regular Gasoline"
+}</code></pre>
+
+<table>
+  <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+  <tr><td><code>make</code></td><td>string</td><td>Manufacturer</td></tr>
+  <tr><td><code>model</code></td><td>string</td><td>Model name</td></tr>
+  <tr><td><code>year</code></td><td>int</td><td>Model year</td></tr>
+  <tr><td><code>city08</code></td><td>int</td><td>City fuel economy (MPG or MPGe)</td></tr>
+  <tr><td><code>highway08</code></td><td>int</td><td>Highway fuel economy</td></tr>
+  <tr><td><code>comb08</code></td><td>int</td><td>Combined fuel economy</td></tr>
+  <tr><td><code>co2</code></td><td>float | null</td><td>CO2 emissions in g/mi (null if unavailable)</td></tr>
+  <tr><td><code>vclass</code></td><td>string</td><td>EPA vehicle class</td></tr>
+  <tr><td><code>fuelType</code></td><td>string</td><td>Primary fuel type</td></tr>
+</table>
+
+<div class="note">
+  For electric vehicles, fuel economy values are in MPGe. Check <code>fuelType</code> for "Electricity". The <code>co2</code> field is <code>null</code> for EVs and some older vehicles where data is unavailable.
+</div>
+
+<h2>Errors</h2>
+<p>All errors return JSON with an <code>error</code> field:</p>
+<pre><code>{"error": "missing email: provide Email header or ?email= query param"}</code></pre>
+
+<table>
+  <tr><th>Status</th><th>Cause</th></tr>
+  <tr><td class="status s4">400</td><td>Invalid vehicle ID or email format</td></tr>
+  <tr><td class="status s4">401</td><td>No email provided</td></tr>
+  <tr><td class="status s4">403</td><td>Disposable email address</td></tr>
+  <tr><td class="status s4">404</td><td>Vehicle ID not found</td></tr>
+  <tr><td class="status s4">429</td><td>Rate limit exceeded (1000 req/min)</td></tr>
+  <tr><td class="status s4">502</td><td>Upstream error (fueleconomy.gov unreachable)</td></tr>
+</table>
+
+<h2>Example Vehicle IDs</h2>
+<table>
+  <tr><th>ID</th><th>Vehicle</th><th>Notes</th></tr>
+  <tr><td><a href="https://vehicle.akte.de/vehicle/47085?email=user@gmail.com" style="color:#2563eb">47085</a></td><td>2024 Toyota Camry</td><td>Standard combustion</td></tr>
+  <tr><td><a href="https://vehicle.akte.de/vehicle/47913?email=user@gmail.com" style="color:#2563eb">47913</a></td><td>2024 Tesla Model Y</td><td>EV, co2 = null, MPGe values</td></tr>
+  <tr><td><a href="https://vehicle.akte.de/vehicle/7062?email=user@gmail.com" style="color:#2563eb">7062</a></td><td>1990 Ford F150</td><td>Old vehicle, co2 via fallback</td></tr>
+</table>
+
+<h2>Rate Limiting</h2>
+<p>Global limit of 1000 requests per minute across all clients. The counter resets after each time window.</p>
+
+</body>
+</html>

@@ -41,9 +41,13 @@ if [ "$STATUS" = "403" ]; then echo "  OK  403 disposable email"; else echo "  F
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/vehicle/abc?email=user@gmail.com")
 if [ "$STATUS" = "400" ]; then echo "  OK  400 invalid ID"; else echo "  FAIL expected 400, got $STATUS"; FAIL=1; fi
 
-# Root → 404
+# Root → 200 (API-Doku)
 STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/")
-if [ "$STATUS" = "404" ]; then echo "  OK  404 root"; else echo "  FAIL expected 404, got $STATUS"; FAIL=1; fi
+if [ "$STATUS" = "200" ]; then echo "  OK  200 root (docs)"; else echo "  FAIL expected 200, got $STATUS"; FAIL=1; fi
+
+# Unbekannter Pfad → 404
+STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE/unknown")
+if [ "$STATUS" = "404" ]; then echo "  OK  404 unknown path"; else echo "  FAIL expected 404, got $STATUS"; FAIL=1; fi
 
 # Rate Limit: nicht im Smoke-Test (1000 req/min zu langsam per curl).
 # Wird über go test ./handler/ (Integration-Test) geprüft.
