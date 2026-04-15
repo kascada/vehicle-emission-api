@@ -1,0 +1,17 @@
+# Binary
+vehicle-emission-api
+vehicle-emission-api.exe
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage.out
+coverage.html
