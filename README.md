@@ -1,6 +1,8 @@
 # Vehicle Emission API
 
-CLI-Tool zum Abrufen von Fahrzeug- und Emissionsdaten über die [fueleconomy.gov API](https://www.fueleconomy.gov/feg/ws/index.shtml).
+CLI-Tool und HTTP-API zum Abrufen von Fahrzeug- und Emissionsdaten über die [fueleconomy.gov API](https://www.fueleconomy.gov/feg/ws/index.shtml).
+
+**Live:** [https://vehicle.akte.de/vehicle/47085?email=user@gmail.com](https://vehicle.akte.de/vehicle/47085?email=user@gmail.com)
 
 ## Voraussetzungen
 
@@ -98,6 +100,21 @@ go run main.go serve -port 9000
 |----------|---------|-----------------------|
 | `-port`  | `8081`  | Port des HTTP-Servers |
 
+## Deployment
+
+Die API läuft als einzelnes Go-Binary hinter einem Apache Reverse Proxy.
+
+```bash
+./deploy/deploy.sh
+```
+
+Das Skript baut ein statisches Linux-Binary (`CGO_ENABLED=0`), lädt es auf den Server und startet es neu. Die Apache-Konfiguration wird mit hochgeladen.
+
+Konfiguration in `deploy/`:
+
+- `deploy.sh` — Build, Upload, Restart
+- `2.vehicle.akte.de.conf` — Apache VirtualHost (HTTP + HTTPS → Port 8081)
+
 ## API-Endpunkt
 
 ```
@@ -109,7 +126,7 @@ Die E-Mail-Adresse zur Authentifizierung kann auf zwei Arten übergeben werden:
 **Variante 1 — Header (empfohlen):**
 
 ```bash
-curl -H "Email: user@gmail.com" http://localhost:8081/vehicle/47085
+curl -H "Email: user@gmail.com" https://vehicle.akte.de/vehicle/47085
 ```
 
 Die E-Mail ist nicht in der URL sichtbar — keine Logs, keine Browser-History, kein Referrer-Leak.
@@ -117,12 +134,18 @@ Die E-Mail ist nicht in der URL sichtbar — keine Logs, keine Browser-History, 
 **Variante 2 — Query-Parameter (zum Testen):**
 
 ```bash
-curl "http://localhost:8081/vehicle/47085?email=user@gmail.com"
+curl "https://vehicle.akte.de/vehicle/47085?email=user@gmail.com"
 ```
 
 Einfacher zum Testen im Browser oder auf der Kommandozeile. Die E-Mail landet allerdings in Server-Logs und Browser-History — daher nur für die Entwicklung gedacht.
 
 Header hat Vorrang. Wenn beide angegeben sind, wird der Header verwendet.
+
+Alle anderen Pfade liefern einen JSON-Hinweis mit 404:
+
+```json
+{"error":"not found","usage":"GET /vehicle/{id}?email=user@example.com"}
+```
 
 ### HTTP-Fehlercodes
 

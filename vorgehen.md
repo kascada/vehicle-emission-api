@@ -145,8 +145,17 @@ go run main.go serve -verbose
 TTL vom Cache wird alle 10min geprüft und altes entfernt, das älter als 6h ist
 
 
+## Cache für Daten
 
+Die Abfargen werden gecached, so kann eine eventuelle Nichterreichbarkeit der Datenquelle eventuell abgefangen werden
 
+## Deployment auf meinen Server
+
+Build mit für binary, Deployment auf meinen Server, Subdomain eingerichtet, SSL aktiviert.
+Proxy für Apache. 
+
+Wenn fehlerhafter Aufruf, wird eine 404 generiert mit Hinweis:
+ {"error":"not found","usage":"GET /vehicle/{id}?email=user@example.com"}
 
 
 
@@ -158,8 +167,8 @@ Cache auch für Anfragen
 
 ## Offene Punkte
 
-- Cache für die Anfragen
 - Prüfen, ob alle Vorgaben erfüllt
-- verbose auch bei API? miss testen
+
 - short -Guard
 - Testen, wenn Quelle nicht erreichbar
+- Geschwindigkeit testen

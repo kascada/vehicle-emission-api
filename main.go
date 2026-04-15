@@ -311,13 +311,20 @@ func cmdServe(args []string) error {
 		return err
 	}
 
-	fc := client.NewFuelEconomyClient(nil)
+	ctx := context.Background()
+	vc := cache.NewVehicleCache(10000, ctx)
+	fc := client.NewFuelEconomyClient(nil, vc, *verboseMode)
 	ev := validator.NewEmailValidator(validator.NewDisposableChecker())
-	ec := cache.NewEmailCache(6*time.Hour, context.Background())
+	ec := cache.NewEmailCache(6*time.Hour, ctx)
 	h := handler.New(ev, ec, fc, *verboseMode)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /vehicle/{id}", h.GetVehicle)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"error":"not found","usage":"GET /vehicle/{id}?email=user@example.com"}`))
+	})
 
 	addr := ":" + *port
 	fmt.Fprintf(os.Stderr, "[serve] listening on %s\n", addr)
@@ -372,64 +379,33 @@ func cmdFetch(args []string) error {
 		return fmt.Errorf("vehicle-id muss ein positiver Integer sein, got %q", vehicleID)
 	}
 
-	// API-Aufruf
+	// Fahrzeugdaten via Client (mit Cache)
+	vc := cache.NewVehicleCache(10000, ctx)
+	fc := client.NewFuelEconomyClient(nil, vc, *verboseMode)
+
 	vlog("api", "fetching vehicle "+vehicleID+"...")
-	data, err := fetchVehicle(vehicleID)
+	vehicle, err := fc.GetVehicle(vehicleID)
 	if err != nil {
 		return err
 	}
 	vlog("api", "OK (200)")
 
-	var v Vehicle
-	if err := json.Unmarshal(data, &v); err != nil {
-		return fmt.Errorf("JSON konnte nicht geparst werden: %w", err)
-	}
-
-	// CO2-Fallback
-	var co2 *float64
-	if f, err := strconv.ParseFloat(v.CO2Raw, 64); err == nil && f > 0 {
-		co2 = &f
-	} else if f, err := strconv.ParseFloat(v.CO2Pipe, 64); err == nil && f > 0 {
-		co2 = &f
-	}
-
 	if *textMode {
 		co2Str := "n/a"
-		if co2 != nil {
-			co2Str = fmt.Sprintf("%.1f g/mi", *co2)
+		if vehicle.CO2 != nil {
+			co2Str = fmt.Sprintf("%.1f g/mi", *vehicle.CO2)
 		}
-		fmt.Printf("%s %s (%s)\n", v.Make, v.Model, v.Year)
-		fmt.Printf("Fuel: %s\n", v.FuelType)
-		fmt.Printf("City: %s | Highway: %s | Combined: %s\n", v.City, v.Highway, v.Combined)
+		fmt.Printf("%s %s (%d)\n", vehicle.Make, vehicle.Model, vehicle.Year)
+		fmt.Printf("Fuel: %s\n", vehicle.FuelType)
+		fmt.Printf("City: %d | Highway: %d | Combined: %d\n", vehicle.City08, vehicle.Highway08, vehicle.Comb08)
 		fmt.Printf("CO2: %s\n", co2Str)
-		fmt.Printf("Class: %s\n", v.Class)
+		fmt.Printf("Class: %s\n", vehicle.VClass)
 		return nil
 	}
 
-	resp := struct {
-		Make     string   `json:"make"`
-		Model    string   `json:"model"`
-		Year     string   `json:"year"`
-		City     string   `json:"city08"`
-		Highway  string   `json:"highway08"`
-		Combined string   `json:"comb08"`
-		CO2      *float64 `json:"co2"`
-		Class    string   `json:"vclass"`
-		FuelType string   `json:"fuelType"`
-	}{
-		Make:     v.Make,
-		Model:    v.Model,
-		Year:     v.Year,
-		City:     v.City,
-		Highway:  v.Highway,
-		Combined: v.Combined,
-		CO2:      co2,
-		Class:    v.Class,
-		FuelType: v.FuelType,
-	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
-	return enc.Encode(resp)
+	return enc.Encode(vehicle)
 }
 
 func cmdCheckEmail(args []string) error {
